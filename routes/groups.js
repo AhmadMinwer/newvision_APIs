@@ -26,7 +26,7 @@ connection.connect(function (err) {
   //add group API
   router.post('/api/v1/groups/add', function (req, res, next) {
 
-    const group = req.body
+    const group = req.body.group
     console.log(req.body)
 
 
@@ -38,8 +38,14 @@ connection.connect(function (err) {
       });
     }
 
-    let stmt = `INSERT INTO groups (name, level, commited_lessons) VALUES (?,?,?)`;
-    let values = [group.name, group.level, group.commited_lessons];
+    let stmt = `INSERT INTO groups (name, level, commited_lessons, starting_date, finishing_date, remarks ) VALUES (?,?,?,?,?,?)`;
+    let values =  [  group.name.toLowerCase(),
+                    group.level,
+                    group.numberOfLessons,
+                    group.starting_date,
+                    group.finishing_date, 
+                    group.remarks.toLowerCase()
+                  ];
 
     connection.query(stmt, values, (err, results, fields) => {
 
@@ -55,11 +61,13 @@ connection.connect(function (err) {
       }
 
       console.log('resulsts = ' + results)
-
+      
+      group['id']= group.insertId
+      
       return res.status(200).send({
         success: 'true',
         message: 'group added successfully',
-        results,
+        group,
       })
 
 

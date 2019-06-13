@@ -53,8 +53,7 @@ connection.connect(function (err) {
 
   router.post('/api/v1/students/add', function (req, res, next) {
 
-    const student = req.body
-    console.log(req.body)
+    let student = req.body.student
 
 
     // student.name is required
@@ -74,8 +73,16 @@ connection.connect(function (err) {
     }
 
 
-    let stmt = `INSERT INTO students (name, phone, phone2, specialty, remarks, terms) VALUES (?,?,?,?,?,?)`;
-    let values = [student.toLowerCase(), student.phone, student.phone2, student.specialty.toLowerCase(), student.remarks.toLowerCase(), student.terms.toLowerCase()];
+    console.log( student)
+    let stmt = `INSERT INTO students (name, phone, phone2, specialty, remarks, terms, cpa) VALUES (?,?,?,?,?,?,?)`;
+    let values = [  student.name.toLowerCase(),
+                    student.phone1,
+                    student.phone2,
+                    student.specialty.toLowerCase(),
+                    student.remarks.toLowerCase(),
+                    student.terms.toLowerCase(),
+                    student.CPA
+                ];
 
     connection.query(stmt, values, (err, results, fields) => {
 
@@ -92,10 +99,12 @@ connection.connect(function (err) {
 
       console.log('resulsts = ' + results)
 
+      student['id']= results.insertId
+      
       return res.status(200).send({
         success: 'true',
         message: 'student added successfully',
-        results,
+        student,
       })
 
 
