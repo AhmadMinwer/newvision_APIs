@@ -38,20 +38,20 @@ connection.connect(function (err) {
       });
     }
 
-    let stmt = `INSERT INTO groups (name, level, commited_lessons, starting_date, finishing_date, remarks ) VALUES (?,?,?,?,?,?)`;
-    let values =  [  group.name.toLowerCase(),
-                    group.level,
-                    group.numberOfLessons,
-                    group.starting_date,
-                    group.finishing_date, 
-                    group.remarks.toLowerCase()
-                  ];
+    let stmt = `INSERT INTO groups (name, level, time, status, commited_lessons, starting_date, finishing_date, remarks, teacher1, teacher2 ) VALUES (?,?,?,?,?,DATE(?), DATE(?) ,?,?,?)`;
+    let values = [group.name.toLowerCase(),
+    group.level.toLowerCase(),
+    group.time.toLowerCase(),
+    group.status.toLowerCase(),
+    group.numberOfLessons,
+    group.startingDate,
+    group.finishingDate,
+    group.remarks.toLowerCase(),
+    group.teacher1.toLowerCase(),
+    group.teacher2.toLowerCase(),
+    ];
 
     connection.query(stmt, values, (err, results, fields) => {
-
-      // // get inserted id
-      // console.log('student Id:' + results.insertId);
-
       if (err) {
         return res.status(404).send({
           success: 'false',
@@ -61,9 +61,9 @@ connection.connect(function (err) {
       }
 
       console.log('resulsts = ' + results)
-      
-      group['id']= group.insertId
-      
+
+      group['id'] = results.insertId
+
       return res.status(200).send({
         success: 'true',
         message: 'group added successfully',
@@ -79,7 +79,7 @@ connection.connect(function (err) {
 
 
   // fetch groups matching filters  
-  router.post('/api/v1/groups/', function (req, res, next) {
+  router.get('/api/v1/groups/', function (req, res, next) {
 
     // const id = parseInt(req.params.id, 10);
     const filters = req.body
@@ -103,7 +103,23 @@ connection.connect(function (err) {
         });
       }
 
-      console.log('resulsts = ' + results)
+      console.log(results)
+
+      results = results.map((group) => {
+        return {
+          id: group.id,
+          name: group.name,
+          level: group.level,
+          status: group.status,
+          teacher: group.teacher1,
+          teacher2: group.teacher2,
+          startDate: group.starting_date,
+          endDate: group.finishing_date,
+          time: group.time,
+          commitLessons: group.commited_lessons,
+          accumulatedLessons:0
+        }
+      })
 
       return res.status(200).send({
         success: 'true',
@@ -113,6 +129,48 @@ connection.connect(function (err) {
 
     })
   })
+
+  
+  // fetch active and potential groups filters  
+  router.get('/active_potential/fetch/', function (req, res, next) {
+
+    
+    let query = 'SELECT * FROM groups WHERE status=\'active\' OR status=\'potential\''
+
+    connection.query(query, function (err, results) {
+      if (err) {
+        return res.status(404).send({
+          success: 'false',
+          message: 'group does not exist',
+        });
+      }
+
+      results = results.map((group) => {
+        return {
+          id: group.id,
+          name: group.name,
+          level: group.level,
+          status: group.status,
+          teacher: group.teacher1,
+          teacher2: group.teacher2,
+          startDate: group.starting_date,
+          endDate: group.finishing_date,
+          time: group.time,
+          commitLessons: group.commited_lessons,
+          accumulatedLessons:0,
+          remarks: group.remarks,
+        }
+      })
+
+      return res.status(200).send({
+        success: 'true',
+        message: 'group retrieved successfully',
+        results,
+      })
+
+    })
+  })
+
 
 
 })

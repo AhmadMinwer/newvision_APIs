@@ -12,6 +12,7 @@ var testAPIRouter = require('./routes/testAPI');
 var settingsRouter = require('./routes/settings');
 var dbtryRouter = require('./routes/dbtry');
 var studentsRouter = require('./routes/students');
+var studentsGroupsRouter = require('./routes/studentsGroups');
 var groupsRouter = require('./routes/groups');
 
 
@@ -36,6 +37,7 @@ app.use('/testAPI', testAPIRouter);
 app.use('/settings', settingsRouter);
 app.use('/dbtry', dbtryRouter);
 app.use('/students', studentsRouter);
+app.use('/studentsGroups', studentsGroupsRouter);
 app.use('/groups', groupsRouter);
 
 // catch 404 and forward to error handler

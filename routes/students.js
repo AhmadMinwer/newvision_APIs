@@ -51,6 +51,46 @@ connection.connect(function (err) {
   // })
 
 
+  router.post('/api/v1/students/fetch', function (req, res, next) {
+
+    let filters = req.body.filters
+
+    console.log(filters)
+
+    let stmt = 'SELECT * '+
+    'FROM students '+
+    'LEFT JOIN student_group ON students.id = student_group.student_id '
+
+    if (filters.filtersGroupId && filters.filtersGroupId != '') stmt += 'AND student_group.group_id = \''+ filters.filtersGroupId + '\' ' + 
+    'WHERE (student_group.group_id !=  \''+ filters.filtersGroupId + '\' ' + 'OR student_group.group_id is NULL) '
+    else 
+    'WHERE (student_group.group_id is NULL) '
+
+      if (filters.filtersId && filters.filtersId != '') stmt += 'AND students.id=\'' + filters.filtersId + '\''
+      if (filters.filtersName && filters.filtersName != '') stmt += ' And students.name like \'%' + filters.filtersName + '%\''
+      if (filters.filtersPhone && filters.filtersPhone != '') stmt += ' AND students.phone =\'' + filters.filtersPhone + '\''
+      if (filters.filtersDate && filters.filtersDate != '') stmt += ' And students.signup_date >= \'' + filters.filtersDate + '\''
+
+
+    console.log('stmt = ' + stmt)
+    connection.query(stmt, (err, results, fields) => {
+      if (err) {
+        return res.status(404).send({
+          success: 'false',
+          message: 'Students did not fetch successfully',
+          err,
+        });
+      }
+
+      console.log(results)
+      return res.status(200).send({
+        success: 'true',
+        message: 'student fetched successfully',
+        results,
+      })
+    })
+  })
+
   router.post('/api/v1/students/add', function (req, res, next) {
 
     let student = req.body.student
@@ -73,22 +113,18 @@ connection.connect(function (err) {
     }
 
 
-    console.log( student)
-    let stmt = `INSERT INTO students (name, phone, phone2, specialty, remarks, terms, cpa) VALUES (?,?,?,?,?,?,?)`;
-    let values = [  student.name.toLowerCase(),
-                    student.phone1,
-                    student.phone2,
-                    student.specialty.toLowerCase(),
-                    student.remarks.toLowerCase(),
-                    student.terms.toLowerCase(),
-                    student.CPA
-                ];
+    console.log(student)
+    let stmt = `INSERT INTO students (name, phone, phone2, specialty, remarks, terms, cpa, signup_date) VALUES (?,?,?,?,?,?,?,now())`;
+    let values = [student.name.toLowerCase(),
+    student.phone1,
+    student.phone2,
+    student.specialty.toLowerCase(),
+    student.remarks.toLowerCase(),
+    student.terms.toLowerCase(),
+    student.CPA
+    ];
 
     connection.query(stmt, values, (err, results, fields) => {
-
-      // // get inserted id
-      // console.log('student Id:' + results.insertId);
-
       if (err) {
         return res.status(404).send({
           success: 'false',
@@ -97,45 +133,50 @@ connection.connect(function (err) {
         });
       }
 
-      console.log('resulsts = ' + results)
+      student['id'] = results.insertId
+      console.log(student)
 
-      student['id']= results.insertId
-      
       return res.status(200).send({
         success: 'true',
         message: 'student added successfully',
         student,
       })
-
-
     });
-
-
-    // console.log('sql query = ' + query)
-    // connection.query(query, function (err, results) {
-
-
-    // })
-
   })
+
 
   router.get('/api/v1/students/active', function (req, res, next) {
 
-    // const id = parseInt(req.params.id, 10);
-    const filters = req.body
 
-    console.log(req.body)
+    //query to fetch all active students
 
+    // let query = 'SELECT * ' +
+    //   'FROM ((student_group ' +
+    //   'INNER JOIN groups ON student_group.group_id = groups.id) ' +
+    //   'INNER JOIN students ON student_group.student_id = students.id) ' +
+    //   'WHERE student_group.status = \'active\' '
+
+    //query to fetch all students related to active and potential groups
     let query = 'SELECT * ' +
-      'FROM ((student_group ' +
-      'INNER JOIN groups ON student_group.group_id = groups.id) ' +
-      'INNER JOIN students ON student_group.student_id = students.id) ' +
-      'WHERE student_group.status = \'active\' '
+      'FROM ( ' +
+      'SELECT students.id as id, ' +
+      'students.cpa, ' +
+      'students.balance, ' +
+      'students.name, ' +
+      'student_group.status as student_status, ' +
+      'groups.status as group_status, ' +
+      'students.specialty, ' +
+      'students.phone, ' +
+      'students.phone2, ' +
+      'students.signup_date, ' +
+      'students.remarks, ' +
+      'students.terms ' +
+      'FROM `students` ' +
+      'JOIN student_group ON students.id = student_group.student_id JOIN groups ON groups.id = student_group.group_id ' +
+      ') as T WHERE T.group_status=\'active\' OR T.group_status=\'potential\' ' +
+      ' GROUP BY id'
 
-
-    console.log('query = ' + query)
-
-    connection.query(query, function (err, results) {
+    connection.query(query, async function (err, results) {
       if (err) {
         return res.status(404).send({
           success: 'false',
@@ -143,64 +184,29 @@ connection.connect(function (err) {
         });
       }
 
-      formatedResults = results.map(student => {
 
-        let query = 'SELECT * FROM `student_group` WHERE student_id = '+ student.student_id
-        let groups = []
-
-        connection.query(query, function (err, results) {
-          if (err) {
-            return res.status(404).send({
-              success: 'false',
-              message: 'groups which student_id = '+ student.student_id+' did not retrieved successfully',
-            });
-          }
-
-          groups = results.map( group => {
-            return{
-              id: group.group_id,
-              exam1: group.mark1,
-              exam2: group.mark2,
-              exam3: group.mark3,
-              status: group.status,
-              certificationState: group.certification,
-              attendance: '',
-              
-            }
-          })
-
-          console.log('groups = ', groups)
-          
-        })
-
-        console.log('22222222222222 groups = ', groups)
-
+      results = results.map((student) => {
         return {
-          id:         student.student_id ,
-          name:       student.name ,
-          CPA:        student.cpa ,
-          createDate: student.signup_date ,
-          specialty:  student.specialty ,
+          id: student.id,
+          name: student.name,
+          CPA: student.cpa,
+          creationDate: student.signup_date,
+          specialty: student.specialty,
           CPABalance: student.balance,
-          phone:      student.phone,
-          phone2:     student.phone2,
-          lastLevel:  '',
-          lastDate:   '',
-          terms:      student.terms,        
-          remarks:    student.remarks,
-          groups,
+          phone: student.phone,
+          phone2: student.phone2,
+          // lastLevel: ,
+          // lastDate: '',
+          terms: student.terms,
+          remarks: student.remarks,
         }
-      }
-      )
-
-      console.log('resulsts = ' + formatedResults)
+      })
 
       return res.status(200).send({
         success: 'true',
         message: 'student retrieved successfully',
-        formatedResults,
+        results,
       })
-
     })
   })
 
@@ -230,19 +236,19 @@ connection.connect(function (err) {
       }
       formatedResults = results.map(student => {
 
-        let query = 'SELECT * FROM `student_group` WHERE student_id = '+ student.student_id
+        let query = 'SELECT * FROM `student_group` WHERE student_id = ' + student.student_id
         let groups = []
 
         connection.query(query, function (err, results) {
           if (err) {
             return res.status(404).send({
               success: 'false',
-              message: 'groups which student_id = '+ student.student_id+' did not retrieved successfully',
+              message: 'groups which student_id = ' + student.student_id + ' did not retrieved successfully',
             });
           }
 
-          groups = results.map( group => {
-            return{
+          groups = results.map(group => {
+            return {
               id: group.group_id,
               exam1: group.mark1,
               exam2: group.mark2,
@@ -250,26 +256,26 @@ connection.connect(function (err) {
               status: group.status,
               certificationState: group.certification,
               attendance: '',
-              
+
             }
           })
-          
+
         })
 
         return {
-          id:         student.student_id ,
-          name:       student.name ,
-          CPA:        student.cpa ,
-          createDate: student.signup_date ,
-          specialty:  student.specialty ,
+          id: student.student_id,
+          name: student.name,
+          CPA: student.cpa,
+          createDate: student.signup_date,
+          specialty: student.specialty,
           CPABalance: student.balance,
-          phone:      student.phone,
-          phone2:     student.phone2,
-          lastLevel:  '',
-          lastDate:   '',
-          terms:      student.terms,        
-          remarks:    student.remarks,
-          groups:     groups,
+          phone: student.phone,
+          phone2: student.phone2,
+          lastLevel: '',
+          lastDate: '',
+          terms: student.terms,
+          remarks: student.remarks,
+          groups: groups,
         }
       }
       )
