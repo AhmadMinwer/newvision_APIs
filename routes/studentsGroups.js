@@ -15,7 +15,7 @@ var connection = mysql.createConnection({
   host: 'localhost',
   user: 'root',
   password: '',
-  database: 'newvisoin'
+  database: 'newvisoin',
 })
 
 connection.connect(function (err) {
@@ -76,7 +76,7 @@ connection.connect(function (err) {
 
         return {
           studentId: row.student_id,
-          groupId:  row.group_id,
+          groupId: row.group_id,
           exam1: row.mark1,
           exam2: row.mark2,
           exam3: row.mark3,
@@ -96,10 +96,12 @@ connection.connect(function (err) {
   })
 
 
-  
+
   router.post('/api/v1/add', function (req, res, next) {
-    
+
     let link = req.body.link
+    
+    console.log(link)
 
     let stmt = `INSERT INTO student_group (student_id, group_id, status, mark1, mark2, mark3, certification) VALUES (?,?,?,?,?,?,?)`;
     let values = [
@@ -121,6 +123,12 @@ connection.connect(function (err) {
         });
       }
 
+      stmt2 = 'select * from students'
+      let value = connection.query(stmt2, (err, results, fields) => {
+        return results
+      })
+      console.log(value)
+
       return res.status(200).send({
         success: 'true',
         message: 'student added to group successfully',
@@ -131,7 +139,7 @@ connection.connect(function (err) {
 
 
   router.post('/api/v1/remove', function (req, res, next) {
-    
+
     let ids = req.body.ids
 
     let stmt = `DELETE FROM student_group WHERE student_id = ? AND group_id = ?`
@@ -159,6 +167,44 @@ connection.connect(function (err) {
   })
 
 
+  router.post('/api/v1/update', function (req, res, next) {
+
+    const mapValues = {
+      status: 'status',
+      mark1: 'mark1',
+      mark2: 'mark2',
+      mark3: 'mark3',
+      certificationState: 'certification',
+    }
+
+
+    const data = req.body.data
+
+    let stmt = 'UPDATE student_group SET ? = \'?\'  WHERE student_id = ? AND group_id = ?'
+    let values = [
+      mapValues[data.type],
+      data.value,
+      data.studentId,
+      data.groupId,
+    ];
+
+    // console.log(stmt)
+
+    connection.query(stmt, values, (err, results, fields) => {
+      if (err) {
+        return res.status(404).send({
+          success: 'false',
+          message: 'Student did not updated successfully',
+          err,
+        });
+      }
+      return res.status(200).send({
+        success: 'true',
+        message: 'student updated successfully',
+        data,
+      })
+    });
+  })
 
 })
 module.exports = router;

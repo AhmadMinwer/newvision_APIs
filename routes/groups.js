@@ -113,8 +113,8 @@ connection.connect(function (err) {
           status: group.status,
           teacher: group.teacher1,
           teacher2: group.teacher2,
-          startDate: group.starting_date,
-          endDate: group.finishing_date,
+          startDate: (''+group.starting_date).substring(3,15),
+          endDate: (''+group.finishing_date).substring(3,15),
           time: group.time,
           commitLessons: group.commited_lessons,
           accumulatedLessons:0
@@ -146,6 +146,7 @@ connection.connect(function (err) {
       }
 
       results = results.map((group) => {
+        console.log((''+group.finishing_date))
         return {
           id: group.id,
           name: group.name,
@@ -153,8 +154,8 @@ connection.connect(function (err) {
           status: group.status,
           teacher: group.teacher1,
           teacher2: group.teacher2,
-          startDate: group.starting_date,
-          endDate: group.finishing_date,
+          startDate: (''+group.starting_date).substring(3,15),
+          endDate: (''+group.finishing_date).substring(3,15),
           time: group.time,
           commitLessons: group.commited_lessons,
           accumulatedLessons:0,
@@ -169,6 +170,53 @@ connection.connect(function (err) {
       })
 
     })
+  })
+
+
+  
+  router.post('/api/v1/update', function (req, res, next) {
+
+    const mapValues = {
+      id: 'id',
+      name: 'name',
+      level: 'level',
+      status: 'status',
+      teacher: 'teacher1',
+      teacher2: 'teacher2',
+      startDate: 'starting_date',
+      endDate: 'finishing_date',
+      time: 'time',
+      commitLessons: 'commited_lessons',
+      accumulatedLessons:0,
+      remarks: 'remarks',
+    }                           
+
+
+    const data = req.body.data
+
+    let stmt = 'UPDATE groups SET '+ mapValues[data.type] +' = ?  WHERE id = ?'
+    let values = [
+      data.value,
+      data.groupId,
+    ];
+
+    console.log(stmt)
+    
+
+    connection.query(stmt, values, (err, results, fields) => {
+      if (err) {
+        return res.status(404).send({
+          success: 'false',
+          message: 'group did not updated successfully',
+          err,
+        });
+      }
+      return res.status(200).send({
+        success: 'true',
+        message: 'group updated successfully',
+        data,
+      })
+    });
   })
 
 
