@@ -55,21 +55,40 @@ connection.connect(function (err) {
 
     let filters = req.body.filters
 
+    // console.log('/students/fetch   is called ')
     console.log(filters)
 
-    let stmt = 'SELECT * '+
-    'FROM students '+
-    'LEFT JOIN student_group ON students.id = student_group.student_id '
+    let stmt = 'SELECT * FROM ( ' +
+      'SELECT students.* , ' +
+      'MAX(groups.level) AS last_level ' +
+      'FROM students ' +
+      'JOIN student_group ON students.id = student_group.student_id ' +
+      'JOIN groups ON groups.id = student_group.group_id ' +
+      'GROUP BY id '+
+      ') AS students ' +
+      'WHERE 1'
+    //  + 'LEFT JOIN student_group ON students.id = student_group.student_id '
 
-    if (filters.filtersGroupId && filters.filtersGroupId != '') stmt += 'AND student_group.group_id = \''+ filters.filtersGroupId + '\' ' + 
-    'WHERE (student_group.group_id !=  \''+ filters.filtersGroupId + '\' ' + 'OR student_group.group_id is NULL) '
-    else 
-    'WHERE (student_group.group_id is NULL) '
+    // if (filters.filtersGroupId && filters.filtersGroupId != '') stmt += 'AND student_group.group_id = \'' + filters.filtersGroupId + '\' ' +
+    //   'WHERE (student_group.group_id !=  \'' + filters.filtersGroupId + '\' ' + 'OR student_group.group_id is NULL) '
+    // else
+    //   'WHERE (student_group.group_id is NULL) '
 
-      if (filters.filtersId && filters.filtersId != '') stmt += 'AND students.id=\'' + filters.filtersId + '\''
-      if (filters.filtersName && filters.filtersName != '') stmt += ' And students.name like \'%' + filters.filtersName + '%\''
-      if (filters.filtersPhone && filters.filtersPhone != '') stmt += ' AND students.phone =\'' + filters.filtersPhone + '\''
-      if (filters.filtersDate && filters.filtersDate != '') stmt += ' And students.signup_date >= \'' + filters.filtersDate + '\''
+    if (filters.name && filters.name != '') stmt += ' And students.name like \'%' + filters.name + '%\''
+    if (filters.id && filters.id != '') stmt += ' AND students.id=\'' + filters.id + '\''
+    if (filters.cpa && filters.cpa != '') stmt += ' And students.cpa= \'' + filters.cpa + '\''
+    if (filters.phone && filters.phone != '') stmt += ' AND students.phone =\'' + filters.phone + '\''
+    // if (filters.status && filters.status != '') stmt += ' AND students.status =\'' + filters.status + '\''
+    if (filters.lastLevel && filters.lastLevel != '') stmt += ' AND last_level =\'' + filters.lastLevel + '\''
+    if (filters.specialty && filters.specialty != '') stmt += ' AND students.specialty like \'%' + filters.specialty + '%\''
+    if (filters.signupFrom && filters.signupFrom != '') stmt += ' AND students.signup_date >= \'' + filters.signupFrom + '\''
+    if (filters.signupTo && filters.signupTo != '') stmt += ' AND students.signup_date <= \'' + filters.signupTo + '\''
+
+    if (filters.cpaBalanceFrom && filters.cpaBalanceFrom != '') stmt += ' AND students.balance >= \'' + filters.cpaBalanceFrom + '\''
+    if (filters.cpaBalanceTo && filters.cpaBalanceTo != '') stmt += ' AND students.balance <= \'' + filters.cpaBalanceTo + '\''
+
+
+    //TODO: complete all filters
 
 
     console.log('stmt = ' + stmt)
@@ -81,6 +100,23 @@ connection.connect(function (err) {
           err,
         });
       }
+
+      results = results.map((student) => {
+        return {
+          id: student.id,
+          name: student.name,
+          CPA: student.cpa,
+          creationDate: student.signup_date,
+          specialty: student.specialty,
+          CPABalance: student.balance,
+          phone: student.phone,
+          phone2: student.phone2,
+          lastLevel: student.last_level,
+          // lastDate: '',
+          terms: student.terms,
+          remarks: student.remarks,
+        }
+      })
 
       console.log(results)
       return res.status(200).send({
@@ -157,14 +193,34 @@ connection.connect(function (err) {
     //   'WHERE student_group.status = \'active\' '
 
     //query to fetch all students related to active and potential groups
-    let query = 'SELECT * ' +
-      'FROM ( ' +
-      'SELECT students.id as id, ' +
+    // let query = 'SELECT * ' +
+    //   'FROM ( ' +
+    //   'SELECT students.id as id, ' +
+    //   'students.cpa, ' +
+    //   'students.balance, ' +
+    //   'students.name, ' +
+    //   'student_group.status as student_status, ' +
+    //   'groups.status as group_status, ' +
+    //   'students.specialty, ' +
+    //   'students.phone, ' +
+    //   'students.phone2, ' +
+    //   'students.signup_date, ' +
+    //   'students.remarks, ' +
+    //   'students.terms ' +
+    //   'FROM `students` ' +
+    //   'JOIN student_group ON students.id = student_group.student_id JOIN groups ON groups.id = student_group.group_id ' +
+    //   ') as T WHERE T.group_status=\'active\' OR T.group_status=\'potential\' ' +
+    //   ' GROUP BY id'
+
+
+    let query = 'SELECT ' +
+      'students.id AS id, ' +
       'students.cpa, ' +
       'students.balance, ' +
       'students.name, ' +
-      'student_group.status as student_status, ' +
-      'groups.status as group_status, ' +
+      'MAX(groups.level) AS last_level, ' +
+      'student_group.status AS student_status, ' +
+      'groups.status AS group_status, ' +
       'students.specialty, ' +
       'students.phone, ' +
       'students.phone2, ' +
@@ -172,9 +228,12 @@ connection.connect(function (err) {
       'students.remarks, ' +
       'students.terms ' +
       'FROM `students` ' +
-      'JOIN student_group ON students.id = student_group.student_id JOIN groups ON groups.id = student_group.group_id ' +
-      ') as T WHERE T.group_status=\'active\' OR T.group_status=\'potential\' ' +
-      ' GROUP BY id'
+      'JOIN student_group ON students.id = student_group.student_id ' +
+      'JOIN groups ON groups.id = student_group.group_id ' +
+      'WHERE ' +
+      'groups.status = \'active\' OR groups.status = \'potential\' ' +
+      'GROUP BY ' +
+      'id '
 
     connection.query(query, async function (err, results) {
       if (err) {
@@ -195,7 +254,7 @@ connection.connect(function (err) {
           CPABalance: student.balance,
           phone: student.phone,
           phone2: student.phone2,
-          // lastLevel: ,
+          lastLevel: student.last_level,
           // lastDate: '',
           terms: student.terms,
           remarks: student.remarks,
@@ -290,6 +349,124 @@ connection.connect(function (err) {
       })
 
     })
+  })
+
+  // search students filters API 
+  router.post('/api/v1/students/filter', function (req, res, next) {
+    let filters = req.body.filters;
+
+    let query = 'SELECT * FROM students WHERE 1 '
+
+    if (filters.id && filters.id != '') query += 'AND id=\'' + filters.id + '\''
+    if (filters.cpa && filters.cpa != '') query += ' AND cpa =\'' + filters.cpa + '\''
+    if (filters.name && filters.name != '') query += ' And name like \'%' + filters.name + '%\''
+
+
+    let andVar = ' and';
+    if (filters.id && filters.id !== '') {
+      stmt += andVar + " s.id = " + filters.id;
+    }
+    if (filters.studentName && filters.studentName !== '') {
+      stmt += andVar + " s.name like '%" + filters.studentName + "%'";
+    }
+    if (filters.cpa && filters.cpa !== '') {
+      stmt += andVar + " s.cpa = " + filters.cpa;
+    }
+    if (filters.balanceFrom && filters.balanceFrom !== '') {
+      stmt += andVar + " s.balance >= " + filters.balanceFrom;
+    }
+    if (filters.balanceTo && filters.balanceTo !== '') {
+      stmt += andVar + " s.balance <= " + filters.balanceTo;
+    }
+    if (filters.status && filters.status !== '') {
+      stmt += andVar + " sg.status = '" + filters.status.toLowerCase() + "'";
+    }
+    else {
+      stmt += andVar + " (g.status = 'active')"
+    }
+    if (filters.phone && filters.phone !== '') {
+      stmt += andVar + " (s.phone like '%" + filters.phone + "%' or s.phone2 like '%" + filters.phone + "%') ";
+    }
+    if (filters.signUpFrom && filters.signUpFrom !== '') {
+      stmt += andVar + " s.signup_date  >= '" + filters.signUpFrom + "'";
+    }
+    if (filters.signUpTo && filters.signUpTo !== '') {
+      stmt += andVar + " s.signup_date  <= '" + filters.signUpTo + "'";
+    }
+    if (filters.specialty && filters.specialty !== '') {
+      stmt += andVar + " s.specialty = '" + filters.specialty + "'";
+    }
+    if (filters.Certificate && filters.Certificate !== '') {
+      if (filters.Certificate === 'given') {
+        stmt += andVar + " ((not isnull(sg.certification)) and sg.certification <> '')";
+      }
+      else {
+        stmt += andVar + " (isnull(sg.certification) or sg.certification = '')";
+      }
+    }
+    if (filters.groupName && filters.groupName !== '') {
+      stmt += andVar + " g.name like '%" + filters.groupName + "%'";
+    }
+    if (filters.groupLevel && filters.groupLevel !== '') {
+      stmt += andVar + " g.level = '" + filters.groupLevel + "'";
+    }
+    else {
+      stmt = " and (g.status = 'active')"
+    }
+    stmt += " GROUP BY s.id"
+    console.log(stmt);
+    connection.query(stmt, async function (err, results) {
+      if (err) {
+        return res.status(404).send({
+          success: 'false',
+          message: 'active students did not retrieved successfully',
+          results: err
+        });
+      }
+
+      results = results.filter((student) => {
+        if (filters.lastLevel && filters.lastLevel !== '') {
+          if (student.lastLevel !== filters.lastLevel) {
+            return false;
+          }
+        }
+        if (filters.lastAtFrom && filters.lastAtFrom !== '') {
+          let from = new Date(filters.lastAtFrom);
+          if (!student.lastDate || (student.lastDate.getFullYear() + "-" + (student.lastDate.getMonth() + 1) + "-" + student.lastDate.getDate() < filters.lastAtFrom)) {
+            return false;
+          }
+        }
+        if (filters.lastAtTo && filters.lastAtTo !== '') {
+          if (!student.lastDate || ((student.lastDate.getFullYear() + "-" + (student.lastDate.getMonth() + 1) + "-" + student.lastDate.getDate()) > filters.lastAtTo)) {
+            return false;
+          }
+        }
+        return true;
+      })
+      results = results.map((student) => {
+        return {
+          id: student.id,
+          name: student.name,
+          CPA: student.cpa,
+          creationDate: student.signup_date,
+          specialty: student.specialty,
+          CPABalance: student.balance,
+          phone: student.phone,
+          phone2: student.phone2,
+          lastLevel: student.lastLevel,
+          lastDate: (student.lastDate instanceof Date) ? (student.lastDate.getFullYear() + "-" + (student.lastDate.getMonth() + 1) + "-" + student.lastDate.getDate()) : student.lastDate,
+          terms: student.terms,
+          remarks: student.remarks,
+        }
+      })
+      console.log(Object.prototype.toString.call(results));
+      return res.status(200).send({
+        success: 'true',
+        message: 'student retrieved successfully',
+        results,
+      })
+    });
+
   })
 
 })

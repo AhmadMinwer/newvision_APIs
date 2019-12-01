@@ -135,7 +135,9 @@ connection.connect(function (err) {
   router.get('/active_potential/fetch/', function (req, res, next) {
 
     
-    let query = 'SELECT * FROM groups WHERE status=\'active\' OR status=\'potential\''
+    // let query = 'SELECT * FROM groups WHERE status=\'active\' OR status=\'potential\''
+    let query = 'SELECT * FROM groups'
+
 
     connection.query(query, function (err, results) {
       if (err) {
